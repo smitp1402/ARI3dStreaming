@@ -1,5 +1,7 @@
-import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
-import { VRButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/VRButton.js';
+import * as THREE from 'three';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { ARButton } from 'three/addons/webxr/ARButton.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
 // Use relative path so it works on localhost or IP or ngrok
 const SIGNALING_URL = '';
@@ -119,12 +121,46 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x101010);
 
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    renderer.xr.setReferenceSpaceType('local');
+    container.appendChild(renderer.domElement);
+
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
 
     // User Rig for movement
     userRig = new THREE.Group();
     scene.add(userRig);
     userRig.add(camera);
+
+    // Controllers
+    const controller1 = renderer.xr.getController(0);
+    const controller2 = renderer.xr.getController(1);
+
+    // Add pointing rays
+    const rayGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+    const rayLine = new THREE.Line(rayGeometry);
+    rayLine.name = 'line';
+    rayLine.scale.z = 5;
+
+    controller1.add(rayLine.clone());
+    controller2.add(rayLine.clone());
+
+    userRig.add(controller1);
+    userRig.add(controller2);
+
+    // Controller Models (Grips)
+    const controllerModelFactory = new XRControllerModelFactory();
+
+    const controllerGrip1 = renderer.xr.getControllerGrip(0);
+    controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+    userRig.add(controllerGrip1);
+
+    const controllerGrip2 = renderer.xr.getControllerGrip(1);
+    controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+    userRig.add(controllerGrip2);
 
     // WebXR RIG: User is always at 0,0,0. We move the world around them.
     // With userRig, we move the rig.
@@ -189,21 +225,21 @@ function init() {
     scene.add(meshMono);
 
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true;
-    renderer.xr.setReferenceSpaceType('local');
-    container.appendChild(renderer.domElement);
+
 
     // Hide Mono mesh in VR, Show in Non-VR
     renderer.xr.addEventListener('sessionstart', () => {
         meshMono.visible = false;
+        const session = renderer.xr.getSession();
+        if (session && session.mode === 'immersive-ar') {
+            scene.background = null;
+        }
     });
     renderer.xr.addEventListener('sessionend', () => {
         // Wait a small amount time for the XR session to fully detach
         setTimeout(() => {
             meshMono.visible = true;
+            scene.background = new THREE.Color(0x101010);
 
             // Comprehensive Camera Reset
             userRig.position.set(0, 0, 0);
@@ -218,7 +254,32 @@ function init() {
         }, 100);
     });
 
-    document.body.appendChild(VRButton.createButton(renderer));
+    // Check for XR support and add buttons for both VR and AR if supported
+    if ('xr' in navigator) {
+        // Check VR Support
+        navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+            if (supported) {
+                const vrButton = VRButton.createButton(renderer);
+                // Position VR button to the left
+                vrButton.style.left = 'calc(50% - 160px)';
+                vrButton.style.width = '150px';
+                document.body.appendChild(vrButton);
+            }
+        });
+
+        // Check AR Support
+        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+            if (supported) {
+                const arButton = ARButton.createButton(renderer);
+                // Position AR button to the right
+                arButton.style.left = 'calc(50% + 10px)';
+                arButton.style.width = '150px';
+                document.body.appendChild(arButton);
+            }
+        });
+    } else {
+        document.body.appendChild(VRButton.createButton(renderer));
+    }
 
     // Keyboard Controls
     window.addEventListener('keydown', (e) => {
