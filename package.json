@@ -1,0 +1,16 @@
+{
+    "name": "ari-3d-streamer",
+    "version": "1.0.0",
+    "description": "Root package for 3D Streamer project",
+    "private": true,
+    "scripts": {
+        "dev": "npm run dev --prefix frontend",
+        "build": "npm run build --prefix frontend",
+        "start": "npm run start --prefix frontend",
+        "lint": "npm run lint --prefix frontend",
+        "install:frontend": "npm install --prefix frontend"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}
