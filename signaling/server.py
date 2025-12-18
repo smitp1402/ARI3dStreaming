@@ -30,7 +30,7 @@ async def get_offer(request):
     global offer_sdp
     if offer_sdp:
         return web.json_response(offer_sdp)
-    return web.mask_response(404) # Not found
+    return web.Response(status=404) # Not found
 
 async def post_answer(request):
     global answer_sdp

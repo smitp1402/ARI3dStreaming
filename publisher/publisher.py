@@ -98,15 +98,16 @@ def main():
 
     logging.basicConfig(level=logging.INFO)
 
-    # create media source
-    player = MediaPlayer(args.video, loop=True)
-
     # create event loop
     loop = asyncio.get_event_loop()
 
     # create peer connection
     while True:
         print("Waiting for new connection...")
+        
+        # Create fresh media source for each connection
+        player = MediaPlayer(args.video, loop=True)
+        
         try:
             pc = RTCPeerConnection(
                 configuration=RTCConfiguration(
