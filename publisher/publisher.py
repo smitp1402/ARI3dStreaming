@@ -14,7 +14,7 @@ ROOT = os.path.dirname(__file__)
 VIDEO_PATH = os.path.join(ROOT, "sbs_video.mp4") # Default video path
 
 # Signaling Server URL
-SIGNALING_URL = "http://localhost:8080"
+SIGNALING_URL = "http://127.0.0.1:8080"
 
 async def run(pc, player):
     # Create an offer
@@ -35,51 +35,57 @@ async def run(pc, player):
                 "sdp": pc.localDescription.sdp,
                 "type": pc.localDescription.type
             }
-            async with session.post(f"{SIGNALING_URL}/offer", json=payload) as resp:
-                if resp.status != 200:
-                    print(f"Failed to send offer: {resp.status}")
-                    return
-                print("Offer sent to signaling server.")
-
-            # Poll for answer
-            print("Waiting for answer...")
-            current_answer = None
-            while True:
-                async with session.get(f"{SIGNALING_URL}/answer") as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        current_answer = data
-                        answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
-                        await pc.setRemoteDescription(answer)
-                        print("Answer received and set. Connection establishing...")
-                        break
-                    elif resp.status == 404:
-                         # Still waiting
-                         await asyncio.sleep(1)
-                    else:
-                        print(f"Error getting answer: {resp.status}")
+            try:
+                async with session.post(f"{SIGNALING_URL}/offer", json=payload) as resp:
+                    if resp.status != 200:
+                        print(f"Failed to send offer: {resp.status}")
                         return
+                    print("Offer sent to signaling server.")
 
-            # Keep alive
-            print("Streaming... Press Ctrl+C to stop.")
-            while True:
-                await asyncio.sleep(1) # Check faster
-                
-                # Check for connection health
-                if pc.connectionState in ["failed", "closed"] or pc.iceConnectionState in ["failed", "closed", "disconnected"]:
-                    print(f"Connection state: {pc.connectionState}, ICE state: {pc.iceConnectionState}. Resetting...")
-                    break
-                
-                # Check for new answer (Client likely refreshed)
-                try:
+                # Poll for answer
+                print("Waiting for answer...")
+                current_answer = None
+                while True:
                     async with session.get(f"{SIGNALING_URL}/answer") as resp:
                         if resp.status == 200:
-                            new_data = await resp.json()
-                            if new_data != current_answer:
-                                print("New answer detected (client refreshed?). Resetting...")
-                                break
-                except Exception as e:
-                    print(f"Error checking answer status: {e}")
+                            data = await resp.json()
+                            current_answer = data
+                            answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
+                            await pc.setRemoteDescription(answer)
+                            print("Answer received and set. Connection establishing...")
+                            break
+                        elif resp.status == 404:
+                            # Still waiting
+                            await asyncio.sleep(1)
+                        else:
+                            print(f"Error getting answer: {resp.status}")
+                            return
+
+                # Keep alive
+                print("Streaming... Press Ctrl+C to stop.")
+                while True:
+                    await asyncio.sleep(1) # Check faster
+                    
+                    # Check for connection health
+                    if pc.connectionState in ["failed", "closed"] or pc.iceConnectionState in ["failed", "closed", "disconnected"]:
+                        print(f"Connection state: {pc.connectionState}, ICE state: {pc.iceConnectionState}. Resetting...")
+                        break
+                    
+                    # Check for new answer (Client likely refreshed)
+                    try:
+                        async with session.get(f"{SIGNALING_URL}/answer") as resp:
+                            if resp.status == 200:
+                                new_data = await resp.json()
+                                if new_data != current_answer:
+                                    print("New answer detected (client refreshed?). Resetting...")
+                                    break
+                    except Exception as e:
+                        print(f"Error checking answer status: {e}")
+
+            except aiohttp.ClientConnectorError:
+                print("Signaling server not reachable. Retrying...")
+                await asyncio.sleep(2)
+                return
 
     except Exception as e:
         print(f"Error: {e}")
@@ -97,6 +103,7 @@ def main():
         return
 
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger("aioice").setLevel(logging.WARNING) # Suppress aioice binding errors
 
     # create event loop
     loop = asyncio.get_event_loop()
