@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Stream Receiver</title>
+    <link rel="icon" type="image/jpeg" href="favicon.jpg">
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+
         #startBtn {
             position: absolute;
             top: 50%;
@@ -19,9 +29,11 @@
         }
     </style>
 </head>
+
 <body>
     <button id="startBtn">Start VR Stream</button>
     <video id="remoteVideo" autoplay playsinline style="display: none;"></video>
     <script type="module" src="client.js"></script>
 </body>
+
 </html>

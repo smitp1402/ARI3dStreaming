@@ -5,20 +5,43 @@ import { VRButton } from 'https://unpkg.com/three@0.160.0/examples/jsm/webxr/VRB
 const SIGNALING_URL = '';
 
 // WebRTC Setup
-const pc = new RTCPeerConnection();
-const remoteVideo = document.getElementById('remoteVideo');
+// WebRTC Setup
+let pc;
 
-pc.ontrack = (event) => {
-    console.log("Stream received!");
-    if (remoteVideo.srcObject !== event.streams[0]) {
-        remoteVideo.srcObject = event.streams[0];
-        // Must play after user interaction usually, but let's try autoplay
-        remoteVideo.play();
+function createPeerConnection() {
+    if (pc) {
+        pc.close();
     }
-};
+    pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    const remoteVideo = document.getElementById('remoteVideo');
+    pc.ontrack = (event) => {
+        console.log("Stream received!");
+        if (remoteVideo.srcObject !== event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideo.play().catch(e => console.log("Autoplay error:", e));
+        }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+        console.log("ICE State:", pc.iceConnectionState);
+        if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "disconnected") {
+            console.log("Connection failed/disconnected. Retrying...");
+            // Retry after 1s
+            setTimeout(() => {
+                console.log("Retrying connection...");
+                startStream();
+            }, 1000);
+        }
+    };
+}
 
 async function startStream() {
     try {
+        createPeerConnection();
+
         const response = await fetch(`/offer`);
         if (!response.ok) {
             console.log("No offer waiting...");
@@ -56,7 +79,8 @@ function init() {
     scene.background = new THREE.Color(0x101010);
 
     camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.z = 3;
+    // WebXR RIG: User is always at 0,0,0. We move the world around them.
+    camera.position.set(0, 0, 0);
 
     // Layers: 0=Non-VR, 1=LeftEye, 2=RightEye
     // We want to be able to see something in Non-VR mode too. 
@@ -82,6 +106,7 @@ function init() {
     }
     const materialLeft = new THREE.MeshBasicMaterial({ map: videoTexture });
     const meshLeft = new THREE.Mesh(geometryLeft, materialLeft);
+    meshLeft.position.z = -3;
     meshLeft.layers.set(1); // Left Eye
     scene.add(meshLeft);
 
@@ -94,6 +119,7 @@ function init() {
     }
     const materialRight = new THREE.MeshBasicMaterial({ map: videoTexture });
     const meshRight = new THREE.Mesh(geometryRight, materialRight);
+    meshRight.position.z = -3;
     meshRight.layers.set(2); // Right Eye
     scene.add(meshRight);
 
@@ -103,6 +129,7 @@ function init() {
     const geometryMono = new THREE.PlaneGeometry(3.2, 0.9);
     const materialMono = new THREE.MeshBasicMaterial({ map: videoTexture });
     const meshMono = new THREE.Mesh(geometryMono, materialMono);
+    meshMono.position.z = -3;
     meshMono.layers.set(0);
     scene.add(meshMono);
 
@@ -112,6 +139,14 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true;
     container.appendChild(renderer.domElement);
+
+    // Hide Mono mesh in VR, Show in Non-VR
+    renderer.xr.addEventListener('sessionstart', () => {
+        meshMono.visible = false;
+    });
+    renderer.xr.addEventListener('sessionend', () => {
+        meshMono.visible = true;
+    });
 
     document.body.appendChild(VRButton.createButton(renderer));
 

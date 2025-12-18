@@ -7,7 +7,7 @@ import time
 import uuid
 
 import aiohttp
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from aiortc.contrib.media import MediaPlayer
 
 ROOT = os.path.dirname(__file__)
@@ -43,10 +43,12 @@ async def run(pc, player):
 
             # Poll for answer
             print("Waiting for answer...")
+            current_answer = None
             while True:
                 async with session.get(f"{SIGNALING_URL}/answer") as resp:
                     if resp.status == 200:
                         data = await resp.json()
+                        current_answer = data
                         answer = RTCSessionDescription(sdp=data["sdp"], type=data["type"])
                         await pc.setRemoteDescription(answer)
                         print("Answer received and set. Connection establishing...")
@@ -58,10 +60,26 @@ async def run(pc, player):
                         print(f"Error getting answer: {resp.status}")
                         return
 
-        # Keep alive
-        print("Streaming... Press Ctrl+C to stop.")
-        while True:
-            await asyncio.sleep(10)
+            # Keep alive
+            print("Streaming... Press Ctrl+C to stop.")
+            while True:
+                await asyncio.sleep(1) # Check faster
+                
+                # Check for connection health
+                if pc.connectionState in ["failed", "closed"] or pc.iceConnectionState in ["failed", "closed", "disconnected"]:
+                    print(f"Connection state: {pc.connectionState}, ICE state: {pc.iceConnectionState}. Resetting...")
+                    break
+                
+                # Check for new answer (Client likely refreshed)
+                try:
+                    async with session.get(f"{SIGNALING_URL}/answer") as resp:
+                        if resp.status == 200:
+                            new_data = await resp.json()
+                            if new_data != current_answer:
+                                print("New answer detected (client refreshed?). Resetting...")
+                                break
+                except Exception as e:
+                    print(f"Error checking answer status: {e}")
 
     except Exception as e:
         print(f"Error: {e}")
@@ -83,16 +101,31 @@ def main():
     # create media source
     player = MediaPlayer(args.video, loop=True)
 
-    # create peer connection
-    pc = RTCPeerConnection()
-
+    # create event loop
     loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(run(pc, player))
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.run_until_complete(pc.close())
+
+    # create peer connection
+    while True:
+        print("Waiting for new connection...")
+        try:
+            pc = RTCPeerConnection(
+                configuration=RTCConfiguration(
+                    iceServers=[RTCIceServer(urls="stun:stun.l.google.com:19302")]
+                )
+            )
+            # Reset player to start or keep playing? simpler to just attach existing player
+            # But MediaPlayer might need reset if it finished? 
+            # For now, let's just reuse the player instance but we might need to seek 0 if we want restart.
+            
+            loop.run_until_complete(run(pc, player))
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            print(f"Connection ended/failed: {e}")
+            # Clean up old PC
+            loop.run_until_complete(pc.close())
+        finally:
+             loop.run_until_complete(pc.close())
 
 if __name__ == "__main__":
     main()
