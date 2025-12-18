@@ -19,18 +19,71 @@ export class WebRTCManager {
                 this.remoteVideo.srcObject = event.streams[0];
                 this.remoteVideo.play().catch(e => console.log("Autoplay error:", e));
             }
+            this.startStatsMonitoring();
         };
 
         this.pc.oniceconnectionstatechange = () => {
             console.log("ICE State:", this.pc.iceConnectionState);
             if (this.pc.iceConnectionState === "failed" || this.pc.iceConnectionState === "disconnected") {
                 console.log("Connection failed/disconnected. Retrying...");
+                this.stopStatsMonitoring();
                 setTimeout(() => {
                     console.log("Retrying connection...");
                     this.startStream();
                 }, 1000);
             }
         };
+    }
+
+    startStatsMonitoring() {
+        this.stopStatsMonitoring(); // Clear existing
+        const rttEl = document.getElementById('rttValue');
+        const resEl = document.getElementById('resValue');
+        const statsBox = document.getElementById('stats');
+
+        if (statsBox) statsBox.style.display = 'block';
+
+        this.statsInterval = setInterval(async () => {
+            if (!this.pc) return;
+
+            // Update Resolution from Video Element
+            if (this.remoteVideo.videoWidth) {
+                if (resEl) resEl.innerText = `${this.remoteVideo.videoWidth}x${this.remoteVideo.videoHeight}`;
+            }
+
+            // Get WebRTC Stats
+            try {
+                const stats = await this.pc.getStats();
+                let activeCandidatePair = null;
+                let remoteInbound = null;
+
+                stats.forEach(report => {
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        activeCandidatePair = report;
+                    }
+                });
+
+                if (activeCandidatePair && rttEl) {
+                    const rtt = activeCandidatePair.currentRoundTripTime
+                        ? (activeCandidatePair.currentRoundTripTime * 1000).toFixed(1)
+                        : (activeCandidatePair.roundTripTime
+                            ? (activeCandidatePair.roundTripTime * 1000).toFixed(1)
+                            : '-');
+                    rttEl.innerText = rtt;
+                }
+            } catch (e) {
+                console.warn("Stats error:", e);
+            }
+        }, 1000);
+    }
+
+    stopStatsMonitoring() {
+        if (this.statsInterval) {
+            clearInterval(this.statsInterval);
+            this.statsInterval = null;
+        }
+        const statsBox = document.getElementById('stats');
+        if (statsBox) statsBox.style.display = 'none';
     }
 
     async startStream() {

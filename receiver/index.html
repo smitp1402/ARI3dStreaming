@@ -44,6 +44,22 @@
             min-width: 300px;
         }
 
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            z-index: 1000;
+            pointer-events: none;
+            display: none;
+            /* Hidden until stream starts */
+        }
+
         #instructions h3 {
             margin-top: 0;
             color: #4CAF50;
@@ -88,6 +104,11 @@
         <div class="row"><span class="key">B</span> Both Controllers</div>
         <div class="row"><span class="key">Arrow Keys</span> Move Selected Controller(s)</div>
         <div class="row"><span class="key">Esc</span> Exit Simulation Mode</div>
+    </div>
+
+    <div id="stats">
+        <div>RTT: <span id="rttValue">-</span> ms</div>
+        <div>Res: <span id="resValue">-</span></div>
     </div>
 
     <video id="remoteVideo" autoplay playsinline style="display: none;"></video>
