@@ -19,13 +19,51 @@
 
         #startBtn {
             position: absolute;
-            top: 50%;
+            top: 20px;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             padding: 15px 30px;
             font-size: 20px;
             z-index: 1000;
             cursor: pointer;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: left;
+            z-index: 1000;
+            background: rgba(20, 20, 20, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            min-width: 300px;
+        }
+
+        #instructions h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+
+        .key {
+            display: inline-block;
+            background: #333;
+            color: #ddd;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+            margin: 0 3px;
+            border-bottom: 2px solid #111;
+        }
+
+        .row {
+            margin: 10px 0;
+            line-height: 1.6;
         }
     </style>
     <script type="importmap">
@@ -40,8 +78,20 @@
 
 <body>
     <button id="startBtn">Start Stream</button>
+
+    <div id="instructions">
+        <h3>Simulation Controls</h3>
+        <div class="row"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span
+                class="key">D</span> Move Player</div>
+        <div class="row"><span class="key">Q</span> Left Controller</div>
+        <div class="row"><span class="key">E</span> Right Controller</div>
+        <div class="row"><span class="key">B</span> Both Controllers</div>
+        <div class="row"><span class="key">Arrow Keys</span> Move Selected Controller(s)</div>
+        <div class="row"><span class="key">Esc</span> Exit Simulation Mode</div>
+    </div>
+
     <video id="remoteVideo" autoplay playsinline style="display: none;"></video>
-    <script type="module" src="client.js"></script>
+    <script type="module" src="js/main.js"></script>
 </body>
 
 </html>
