@@ -69,13 +69,7 @@ When the stream is running, you can use the keyboard to simulate VR movement and
 - **Simulation Mode**: Test VR interactions on a desktop using keyboard controls.
 - **Live Stats**: Displays real-time Network Latency (RTT) and Video Resolution.
 
-## Monitoring Latency
-When the stream is running, a stats box appears in the top-right corner:
-- **RTT (Round Trip Time)**: The time (in ms) for data to travel back and forth. 
-  - *< 50ms*: Excellent
-  - *50ms - 150ms*: Good
-  - *> 150ms*: Noticeable lag may occur
-- **Res (Resolution)**: The current receiving video resolution.
+
 
 ## Development Tools (WebXR Simulator)
 
